@@ -53,7 +53,7 @@ public class MyController : ControllerBase
 [Route("api/")]
 public class ValuesController : ControllerBase
 {
-    private static List<IFormFile> _files = new List<IFormFile>();
+    private static List<IFormFile> _files = new List<IFormFile>(); //Denna ska bytas ut till en databas
     [HttpPost("UploadFile")]
     public IActionResult UploadFile([FromForm] IFormFile file) 
     {
