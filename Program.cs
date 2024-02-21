@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend_2;
 
@@ -11,6 +12,13 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        builder.Services.AddDbContext<DatabaseContext>(options =>
+        {
+            options.UseNpgsql(
+                "Host=localhost;Database=dropbox;Username=postgres;Password=password"
+            );
+        });
+ 
         builder.Services.AddControllers();
 
         // // Add services to the container.
@@ -21,8 +29,6 @@ public class Program
         // builder.Services.AddSwaggerGen();
 
         var app = builder.Build();
-
-       
 
         // // Configure the HTTP request pipeline.
         // if (app.Environment.IsDevelopment())
@@ -35,27 +41,46 @@ public class Program
 
         app.MapControllers();
 
-        app.Run();
+        //app.Run();
     }
 }
 
-[ApiController]
-[Route("api/test")]
-public class MyController : ControllerBase
+public class AppFile
 {
-    [HttpGet()]
-    public string SayHello()
+    public int Id { get; set; }
+    public byte[] Content { get; set; }
+
+    public AppFile() { }
+
+    public AppFile(byte[] content)
     {
-        return "Test";
-    } 
+        this.Content = content;
+    }
 }
+
+public class DatabaseContext : DbContext
+{
+    public DbSet<AppFile> AppFiles { get; set; }
+
+    public DatabaseContext(DbContextOptions<DatabaseContext> options)
+        : base(options) { }
+
+}
+
+[ApiController]
 
 [Route("api/")]
 public class ValuesController : ControllerBase
 {
+    DatabaseContext context;
+
+    public ValuesController(DatabaseContext context)
+    {
+        this.context = context;
+    }
     private static List<IFormFile> _files = new List<IFormFile>(); //Denna ska bytas ut till en databas
     [HttpPost("UploadFile")]
-    public IActionResult UploadFile([FromForm] IFormFile file) 
+    public IActionResult UploadFile([FromForm] IFormFile file)
     {
         IFormFile formFile = file; //new FormFile();
         _files.Add(formFile);
@@ -66,12 +91,13 @@ public class ValuesController : ControllerBase
     public IActionResult UploadFiles(List<IFormFile> files)
     {
         List<IFormFile> formFile = files; //new FormFile();
-        foreach(var File in files) {
+        foreach (var File in files)
+        {
             _files.Add(File);
         }
         return Ok(files.Sum(file => file.Length));
     }
-        //=> Ok(files.Sum(file => file.Length));
+    //=> Ok(files.Sum(file => file.Length));
 
 
     [HttpGet("GetAllFiles")]
