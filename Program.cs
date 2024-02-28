@@ -25,7 +25,7 @@ public class Program
         });
 
         builder.Services.AddControllers();
-
+        
         // // Add services to the container.
         // builder.Services.AddAuthorization();
 
@@ -33,8 +33,12 @@ public class Program
         // builder.Services.AddEndpointsApiExplorer();
         // builder.Services.AddSwaggerGen();
 
+        builder.Services.AddAuthentication().AddBearerToken(IdentityConstants.BearerScheme);
+        builder.Services.AddIdentityCore<User>().AddEntityFrameworkStores<DatabaseContext>().AddApiEndpoints();
+        
         var app = builder.Build();
-        // builder.Services.AddAuthentication().AddBearerToken().
+
+
         // // Configure the HTTP request pipeline.
         // if (app.Environment.IsDevelopment())
         // {
@@ -43,9 +47,11 @@ public class Program
         // }
 
         // app.UseHttpsRedirection();
-
+        app.MapIdentityApi<User>();
         app.MapControllers();
-
+        app.UseAuthentication();
+        app.UseAuthorization();
+        
         app.Run();
     }
 }
@@ -70,6 +76,21 @@ public class AppFile
     }
 }
 
+public class AppFileDto
+{
+    public int Id { get; set; }
+    public string FileName { get; set; }
+    public byte[] Content { get; set; }
+
+    public AppFileDto(AppFile appFile)
+    {
+
+        this.FileName = appFile.FileName;
+        this.Content = appFile.Content;
+        this.Id = appFile.Id;
+    }
+
+}
 public class DatabaseContext : IdentityDbContext<User>
 {
     public DbSet<AppFile> AppFiles { get; set; }
@@ -90,91 +111,48 @@ public class ValuesController : ControllerBase
     {
         this.context = context;
     }
-    //private static List<IFormFile> _files = new List<IFormFile>(); //Denna ska bytas ut till en databas
-
-    // [HttpPost("UploadFile")]
-    // public IActionResult UploadFile([FromForm] IFormFile file)
-    // {
-    //     // IFormFile formFile = file; //new FormFile();
-
-    //     AppFile _file = new AppFile(file.FileName)
-    //     // context.AppFiles.Add(formFile); //AppFiles<Appfile> 
-    //     context.AppFiles.Add(file);
-    //     context.SaveChanges();
-    //     return Ok(file.Length);
-    // }
-
 
     [HttpPost("UploadFile")]
+    [Authorize]
     public IActionResult UploadFile([FromForm] IFormFile file)
     {
+        var user = context.Users.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        if (user == null)
+        {
+            return NotFound();
+        }
+        
         using (var memoryStream = new MemoryStream())
         {
             file.CopyToAsync(memoryStream);
-
             byte[] bytearr = memoryStream.ToArray();
-
             AppFile _file = new AppFile(file.FileName, bytearr);
-            //IFormFile formFile = file;
 
-            // IFormFile _file = new AppFile(file.FileName, file.Length);
             context.AppFiles.Add(_file);
             context.SaveChanges();
-            //new FormFile();
-            //_files.Add(formFile);
-            return Ok(new AppFile(_file.FileName, _file.Content));
+
+            AppFileDto output = new AppFileDto(_file);
+            //return Ok(output);
+            return CreatedAtAction(nameof(UploadFile), output);
         }
     }
 
-
-
-    // [HttpPost("UploadFiles")]
-    // public IActionResult UploadFiles(List<IFormFile> files)
-    // {
-    //     List<IFormFile> formFile = files; //new FormFile();
-    //     foreach (var File in files)
-    //     {
-    //         _files.Add(File);
-    //     }
-    //     return Ok(files.Sum(file => file.Length));
-    // }
-    // //=> Ok(files.Sum(file => file.Length));
-
-
     [HttpGet("GetAllFiles")]
-    public List<AppFile> GetAllFiles()
+    public List<AppFileDto> GetAllFiles()
     {
-        var list = context.AppFiles.ToList();
+        var list = context.AppFiles.ToList().Select(appFile => new AppFileDto(appFile)).ToList();
         return list;
     }
 
-    // [HttpGet("DownloadFile/{id}")]
-    // public IActionResult DownloadFile(int id)
-    // {
-    //     var file = context.AppFiles.FirstOrDefault(f => f.Id == id);
-
-    //     if (file == null)
-    //     {
-    //         return NotFound();
-    //     }
-    //     return File(file.Content, "application/octet-stream");
-    // }
     [HttpGet("DownloadFile/{id}")]
     public IActionResult Download(int id)
     {
-        // byte[] bytes;
-        // string fileName, contentType;
-
         var file = context.AppFiles.FirstOrDefault(files => files.Id == id);
 
         if (file == null)
         {
-            //fileName = file.fileName;
-            // bytes = file.Content;
-
             return NotFound();
         }
-
         return File(file.Content, "application/octet-stream", file.FileName);
     }
 }
