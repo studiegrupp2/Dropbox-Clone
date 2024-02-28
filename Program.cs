@@ -41,13 +41,14 @@ public class Program
 
         app.MapControllers();
 
-        //app.Run();
+        app.Run();
     }
 }
 
 public class AppFile
 {
     public int Id { get; set; }
+    public  string fileName {get; set;}
     public byte[] Content { get; set; }
 
     public AppFile() { }
@@ -79,6 +80,7 @@ public class ValuesController : ControllerBase
         this.context = context;
     }
     private static List<IFormFile> _files = new List<IFormFile>(); //Denna ska bytas ut till en databas
+
     [HttpPost("UploadFile")]
     public IActionResult UploadFile([FromForm] IFormFile file)
     {
@@ -105,4 +107,34 @@ public class ValuesController : ControllerBase
     {
         return _files;
     }
+
+    // [HttpGet("DownloadFile/{id}")]
+    // public IActionResult DownloadFile(int id)
+    // {
+    //     var file = context.AppFiles.FirstOrDefault(f => f.Id == id);
+
+    //     if (file == null)
+    //     {
+    //         return NotFound();
+    //     }
+    //     return File(file.Content, "application/octet-stream");
+    // }
+    [HttpGet("DownloadFile/{id}")]
+     public IActionResult Download(int id)
+        {
+            // byte[] bytes;
+            // string fileName, contentType;
+
+            var file = context.AppFiles.FirstOrDefault(files => files.Id == id);
+
+            if (file != null)
+            {
+                //fileName = file.fileName;
+                // bytes = file.Content;
+
+                return File(file.Content, file.fileName);
+            }
+
+            return Ok("Can't find the File");
+        }
 }
