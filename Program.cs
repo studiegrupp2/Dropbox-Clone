@@ -59,6 +59,8 @@ public class Program
 public class User : IdentityUser
 {
     public List<AppFile> AppFiles = new List<AppFile>();
+
+    // public User() {}
 }
 public class AppFile
 {
@@ -116,7 +118,7 @@ public class ValuesController : ControllerBase
     [Authorize]
     public IActionResult UploadFile([FromForm] IFormFile file)
     {
-        var user = context.Users.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        User? user = context.Users.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
         if (user == null)
         {
             return NotFound();
@@ -127,6 +129,9 @@ public class ValuesController : ControllerBase
             file.CopyToAsync(memoryStream);
             byte[] bytearr = memoryStream.ToArray();
             AppFile _file = new AppFile(file.FileName, bytearr);
+            _file.User = user;
+
+            user.AppFiles.Add(_file);
 
             context.AppFiles.Add(_file);
             context.SaveChanges();
@@ -145,14 +150,24 @@ public class ValuesController : ControllerBase
     }
 
     [HttpGet("DownloadFile/{id}")]
+    [Authorize]
     public IActionResult Download(int id)
     {
+        User? user = context.Users.Find(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        if (user == null)
+        {
+            return NotFound();
+        }
         var file = context.AppFiles.FirstOrDefault(files => files.Id == id);
 
         if (file == null)
         {
             return NotFound();
         }
+        if (file.User == user)
+        {
         return File(file.Content, "application/octet-stream", file.FileName);
+        }
+        return NotFound("No Access");
     }
 }
